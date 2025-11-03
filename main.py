@@ -972,6 +972,17 @@ async def raise_complaint_page(request: Request):
         "user": user,
         "categories": COMPLAINT_CATEGORIES,
         "severity_levels": COMPLAINT_SEVERITY,
+        "states": INDIAN_STATES
+    })
+    user = await get_current_user(request)
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+    
+    return templates.TemplateResponse("raise_complaint.html", {
+        "request": request,
+        "user": user,
+        "categories": COMPLAINT_CATEGORIES,
+        "severity_levels": COMPLAINT_SEVERITY,
         "states": INDIAN_STATES,
         "is_admin": user.get('username') == 'admin'
     })
