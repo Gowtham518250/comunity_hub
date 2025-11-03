@@ -1,0 +1,28 @@
+{
+  "admin": {
+    "username": "admin",
+    "email": "admin@communityhub.ai",
+    "phone": "+91-9876543210",
+    "hashed_password": "240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9",
+    "joined_date": "2025-11-03T13:11:04.385084",
+    "role": "admin",
+    "preferences": {
+      "notifications": true,
+      "email_alerts": true,
+      "sms_alerts": true
+    }
+  },
+  "demo": {
+    "username": "demo",
+    "email": "demo@communityhub.ai",
+    "phone": "+91-9876543211",
+    "hashed_password": "d3ad9315b7be5dd53b31a273b3b3aba5defe700808305aa16a3062b76658a791",
+    "joined_date": "2025-11-03T13:11:04.400956",
+    "role": "user",
+    "preferences": {
+      "notifications": true,
+      "email_alerts": true,
+      "sms_alerts": false
+    }
+  }
+}

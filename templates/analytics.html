@@ -1,0 +1,1440 @@
+{% extends "base.html" %}
+
+{% block title %}Analytics - CommunityHub Pro{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<style>
+    .analytics-header {
+        text-align: center;
+        margin-bottom: 3rem;
+        padding: 2rem;
+    }
+
+    .analytics-title {
+        font-size: 3rem;
+        font-weight: 900;
+        margin-bottom: 1rem;
+        background: linear-gradient(135deg, #FF6B6B, #FFA500, #FFD93D, #6BCF7F, #4D96FF, #9D4EDD);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+
+    .analytics-subtitle {
+        font-size: 1.3rem;
+        color: rgba(255, 255, 255, 0.9);
+    }
+
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 3rem;
+    }
+
+    .stat-card {
+        background: rgba(255, 255, 255, 0.15);
+        backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 20px;
+        padding: 2rem;
+        text-align: center;
+        transition: transform 0.3s ease;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .stat-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+        transition: left 0.6s ease;
+    }
+
+    .stat-card:hover::before {
+        left: 100%;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-10px);
+    }
+
+    .stat-icon {
+        width: 70px;
+        height: 70px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 1rem;
+        font-size: 1.8rem;
+        color: white;
+    }
+
+    .stat-number {
+        font-size: 2.5rem;
+        font-weight: 800;
+        margin-bottom: 0.5rem;
+        color: white;
+    }
+
+    .stat-label {
+        color: rgba(255, 255, 255, 0.8);
+        font-size: 1rem;
+        font-weight: 600;
+    }
+
+    .charts-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+        gap: 2rem;
+        margin-bottom: 3rem;
+    }
+
+    .chart-card {
+        background: rgba(255, 255, 255, 0.15);
+        backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 20px;
+        padding: 2rem;
+    }
+
+    .chart-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 2rem;
+    }
+
+    .chart-title {
+        font-size: 1.3rem;
+        font-weight: 700;
+        color: white;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .chart-container {
+        height: 300px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: rgba(255, 255, 255, 0.7);
+    }
+
+    /* Advanced Map Styles */
+    .map-container {
+        height: 500px;
+        border-radius: 20px;
+        overflow: hidden;
+        position: relative;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+        margin-bottom: 2rem;
+    }
+
+    #complaintsMap {
+        height: 100%;
+        width: 100%;
+        border-radius: 20px;
+    }
+
+    .map-controls {
+        position: absolute;
+        top: 20px;
+        right: 20px;
+        z-index: 1000;
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(20px);
+        border-radius: 15px;
+        padding: 1rem;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        min-width: 200px;
+    }
+
+    .map-filter-group {
+        margin-bottom: 1rem;
+    }
+
+    .map-filter-group:last-child {
+        margin-bottom: 0;
+    }
+
+    .map-filter-label {
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+        color: #333;
+        font-size: 0.9rem;
+    }
+
+    .map-filter-select {
+        width: 100%;
+        padding: 0.5rem;
+        border: 1px solid rgba(0, 0, 0, 0.1);
+        border-radius: 8px;
+        background: white;
+        font-size: 0.9rem;
+    }
+
+    .heatmap-toggle {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-top: 0.5rem;
+    }
+
+    .heatmap-toggle input {
+        margin: 0;
+    }
+
+    .heatmap-toggle-label {
+        font-size: 0.9rem;
+        color: #333;
+    }
+
+    .map-stats-overlay {
+        position: absolute;
+        bottom: 20px;
+        left: 20px;
+        z-index: 1000;
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(20px);
+        border-radius: 15px;
+        padding: 1.5rem;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        min-width: 250px;
+    }
+
+    .map-stat-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 0.75rem;
+        padding-bottom: 0.75rem;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+    }
+
+    .map-stat-item:last-child {
+        margin-bottom: 0;
+        padding-bottom: 0;
+        border-bottom: none;
+    }
+
+    .map-stat-label {
+        font-weight: 600;
+        color: #333;
+        font-size: 0.9rem;
+    }
+
+    .map-stat-value {
+        font-weight: 700;
+        color: #4D96FF;
+        font-size: 1rem;
+    }
+
+    /* Cluster Map Styles */
+    .cluster-map-legend {
+        background: rgba(255, 255, 255, 0.95);
+        padding: 1rem;
+        border-radius: 10px;
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+    }
+
+    .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .legend-color {
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        border: 2px solid white;
+    }
+
+    .legend-label {
+        font-size: 0.9rem;
+        color: #333;
+    }
+
+    /* Timeline Visualization */
+    .timeline-container {
+        height: 300px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 15px;
+        padding: 1rem;
+        margin-top: 1rem;
+    }
+
+    .timeline-chart {
+        width: 100%;
+        height: 100%;
+    }
+
+    .distribution-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        margin-top: 1rem;
+    }
+
+    .distribution-item {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        padding: 1rem;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 10px;
+    }
+
+    .distribution-color {
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+    }
+
+    .distribution-info {
+        flex: 1;
+    }
+
+    .distribution-name {
+        font-weight: 600;
+        color: white;
+        font-size: 0.9rem;
+    }
+
+    .distribution-count {
+        color: rgba(255, 255, 255, 0.7);
+        font-size: 0.8rem;
+    }
+
+    .distribution-percentage {
+        font-weight: 700;
+        color: white;
+    }
+
+    .ai-insights {
+        margin-top: 3rem;
+    }
+
+    .insights-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 1.5rem;
+    }
+
+    .insight-card {
+        background: rgba(255, 255, 255, 0.15);
+        backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 20px;
+        padding: 2rem;
+        transition: transform 0.3s ease;
+    }
+
+    .insight-card:hover {
+        transform: translateY(-5px);
+    }
+
+    .insight-header {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .insight-icon {
+        width: 50px;
+        height: 50px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        color: white;
+    }
+
+    .insight-title {
+        font-weight: 700;
+        color: white;
+        font-size: 1.1rem;
+    }
+
+    .insight-message {
+        color: rgba(255, 255, 255, 0.8);
+        line-height: 1.5;
+    }
+
+    .trend-indicator {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        padding: 0.25rem 0.5rem;
+        border-radius: 15px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        margin-left: 0.5rem;
+    }
+
+    .trend-up {
+        background: rgba(34, 197, 94, 0.2);
+        color: #22c55e;
+    }
+
+    .trend-down {
+        background: rgba(239, 68, 68, 0.2);
+        color: #ef4444;
+    }
+
+    .trend-neutral {
+        background: rgba(156, 163, 175, 0.2);
+        color: #9ca3af;
+    }
+
+    /* Simple chart bars for distribution */
+    .chart-bar {
+        height: 20px;
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 10px;
+        margin: 0.5rem 0;
+        overflow: hidden;
+    }
+
+    .chart-fill {
+        height: 100%;
+        border-radius: 10px;
+        transition: width 1s ease-in-out;
+    }
+
+    /* Hotspot Indicators */
+    .hotspot-indicator {
+        position: relative;
+        display: inline-block;
+    }
+
+    .hotspot-pulse {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background: #FF6B6B;
+        position: absolute;
+        top: -5px;
+        right: -5px;
+        animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+        0% {
+            transform: scale(0.8);
+            opacity: 1;
+        }
+        70% {
+            transform: scale(2);
+            opacity: 0;
+        }
+        100% {
+            transform: scale(0.8);
+            opacity: 0;
+        }
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+        .analytics-title {
+            font-size: 2rem;
+        }
+        
+        .charts-grid {
+            grid-template-columns: 1fr;
+        }
+        
+        .stats-grid {
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        }
+        
+        .insights-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .map-container {
+            height: 400px;
+        }
+
+        .map-controls {
+            position: relative;
+            top: auto;
+            right: auto;
+            margin-bottom: 1rem;
+        }
+
+        .map-stats-overlay {
+            position: relative;
+            bottom: auto;
+            left: auto;
+            margin-top: 1rem;
+        }
+    }
+
+    /* Leaflet Customization */
+    :root {
+        --cluster-1: #FF6B6B;
+        --cluster-2: #FFA500;
+        --cluster-3: #FFD93D;
+        --cluster-4: #6BCF7F;
+        --cluster-5: #4D96FF;
+    }
+
+    .leaflet-container {
+        background: rgba(40, 40, 40, 0.95) !important;
+    }
+
+    .leaflet-popup-content-wrapper {
+        background: rgba(255, 255, 255, 0.95) !important;
+        backdrop-filter: blur(20px) !important;
+        border-radius: 15px !important;
+        box-shadow: 0 15px 35px rgba(0, 0, 0, 0.3) !important;
+    }
+
+    .leaflet-popup-tip {
+        background: rgba(255, 255, 255, 0.95) !important;
+    }
+
+    .complaint-popup {
+        min-width: 250px;
+    }
+
+    .popup-header {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        margin-bottom: 1rem;
+        padding-bottom: 0.75rem;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+    }
+
+    .popup-status {
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: white;
+    }
+
+    .popup-title {
+        font-weight: 700;
+        color: #333;
+        margin-bottom: 0.5rem;
+    }
+
+    .popup-details {
+        color: #666;
+        font-size: 0.9rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .popup-meta {
+        display: flex;
+        justify-content: space-between;
+        color: #888;
+        font-size: 0.8rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="analytics-header">
+    <h1 class="analytics-title">Community Analytics Dashboard 🌍</h1>
+    <p class="analytics-subtitle">Advanced visualizations and real-time insights for your community management</p>
+</div>
+
+<!-- Interactive Map Section -->
+<div class="chart-card">
+    <div class="chart-header">
+        <h3 class="chart-title">
+            <i class="fas fa-map-marked-alt"></i>
+            Live Complaint Heatmap & Distribution
+        </h3>
+        <div class="hotspot-indicator">
+            <span>Live Updates</span>
+            <div class="hotspot-pulse"></div>
+        </div>
+    </div>
+    
+    <div class="map-container">
+        <div id="complaintsMap"></div>
+        
+        <!-- Map Controls -->
+        <div class="map-controls">
+            <div class="map-filter-group">
+                <div class="map-filter-label">Filter by Category</div>
+                <select class="map-filter-select" id="categoryFilter">
+                    <option value="all">All Categories</option>
+                    {% for key, category in categories.items() %}
+                    <option value="{{ key }}">{{ category.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="map-filter-group">
+                <div class="map-filter-label">Filter by Status</div>
+                <select class="map-filter-select" id="statusFilter">
+                    <option value="all">All Statuses</option>
+                    {% for key, status in status_types.items() %}
+                    <option value="{{ key }}">{{ status.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="map-filter-group">
+                <div class="map-filter-label">Time Range</div>
+                <select class="map-filter-select" id="timeFilter">
+                    <option value="all">All Time</option>
+                    <option value="today">Today</option>
+                    <option value="week">This Week</option>
+                    <option value="month">This Month</option>
+                </select>
+            </div>
+            
+            <div class="heatmap-toggle">
+                <input type="checkbox" id="heatmapToggle" checked>
+                <label class="heatmap-toggle-label" for="heatmapToggle">Show Heatmap</label>
+            </div>
+        </div>
+        
+        <!-- Map Stats Overlay -->
+        <div class="map-stats-overlay">
+            <div class="map-stat-item">
+                <span class="map-stat-label">Total Complaints</span>
+                <span class="map-stat-value" id="mapTotalComplaints">{{ analytics.total_complaints }}</span>
+            </div>
+            <div class="map-stat-item">
+                <span class="map-stat-label">Active Clusters</span>
+                <span class="map-stat-value" id="mapClusters">0</span>
+            </div>
+            <div class="map-stat-item">
+                <span class="map-stat-label">High Density Areas</span>
+                <span class="map-stat-value" id="mapHotspots">0</span>
+            </div>
+            <div class="map-stat-item">
+                <span class="map-stat-label">Avg. Response Time</span>
+                <span class="map-stat-value" id="mapAvgResponse">24h</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Key Metrics -->
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-icon" style="background: linear-gradient(135deg, #FF6B6B, #FFA500);">
+            <i class="fas fa-bullhorn"></i>
+        </div>
+        <div class="stat-number">{{ analytics.total_complaints }}</div>
+        <div class="stat-label">Total Complaints</div>
+    </div>
+    
+    <div class="stat-card">
+        <div class="stat-icon" style="background: linear-gradient(135deg, #6BCF7F, #4D96FF);">
+            <i class="fas fa-check-circle"></i>
+        </div>
+        <div class="stat-number">{{ analytics.resolved_complaints }}</div>
+        <div class="stat-label">Resolved</div>
+    </div>
+    
+    <div class="stat-card">
+        <div class="stat-icon" style="background: linear-gradient(135deg, #FFA500, #FFD93D);">
+            <i class="fas fa-clock"></i>
+        </div>
+        <div class="stat-number">{{ analytics.pending_complaints }}</div>
+        <div class="stat-label">Pending</div>
+    </div>
+    
+    <div class="stat-card">
+        <div class="stat-icon" style="background: linear-gradient(135deg, #FF6B6B, #9D4EDD);">
+            <i class="fas fa-exclamation-triangle"></i>
+        </div>
+        <div class="stat-number">{{ analytics.urgent_complaints }}</div>
+        <div class="stat-label">Urgent</div>
+    </div>
+    
+    <div class="stat-card">
+        <div class="stat-icon" style="background: linear-gradient(135deg, #4D96FF, #9D4EDD);">
+            <i class="fas fa-chart-line"></i>
+        </div>
+        <div class="stat-number">{{ analytics.resolution_rate }}%</div>
+        <div class="stat-label">Resolution Rate</div>
+    </div>
+    
+    <div class="stat-card">
+        <div class="stat-icon" style="background: linear-gradient(135deg, #FFD93D, #6BCF7F);">
+            <i class="fas fa-users"></i>
+        </div>
+        <div class="stat-number">{{ analytics.total_users }}</div>
+        <div class="stat-label">Active Users</div>
+    </div>
+</div>
+
+<!-- Charts and Distributions -->
+<div class="charts-grid">
+    <!-- Status Distribution -->
+    <div class="chart-card">
+        <div class="chart-header">
+            <h3 class="chart-title">
+                <i class="fas fa-chart-pie"></i>
+                Complaint Status
+            </h3>
+        </div>
+        <div class="distribution-grid">
+            {% for status_key, count in analytics.status_distribution.items() %}
+            {% if count > 0 %}
+            <div class="distribution-item">
+                <div class="distribution-color" style="background: {{ status_types[status_key].color }};"></div>
+                <div class="distribution-info">
+                    <div class="distribution-name">{{ status_types[status_key].name }}</div>
+                    <div class="distribution-count">{{ count }} complaints</div>
+                </div>
+                <div class="distribution-percentage">
+                    {{ "%.1f"|format((count / analytics.total_complaints * 100) if analytics.total_complaints > 0 else 0) }}%
+                </div>
+            </div>
+            {% endif %}
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Category Distribution -->
+    <div class="chart-card">
+        <div class="chart-header">
+            <h3 class="chart-title">
+                <i class="fas fa-tags"></i>
+                Issue Categories
+            </h3>
+        </div>
+        <div class="distribution-grid">
+            {% for category_key, count in analytics.category_distribution.items() %}
+            {% if count > 0 %}
+            <div class="distribution-item">
+                <div class="distribution-color" style="background: {{ categories[category_key].color }};"></div>
+                <div class="distribution-info">
+                    <div class="distribution-name">{{ categories[category_key].name }}</div>
+                    <div class="distribution-count">{{ count }} complaints</div>
+                </div>
+                <div class="chart-bar">
+                    <div class="chart-fill" style="
+                        width: {{ (count / analytics.total_complaints * 100) if analytics.total_complaints > 0 else 0 }}%;
+                        background: {{ categories[category_key].color }};
+                    "></div>
+                </div>
+            </div>
+            {% endif %}
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Severity Distribution -->
+    <div class="chart-card">
+        <div class="chart-header">
+            <h3 class="chart-title">
+                <i class="fas fa-exclamation-triangle"></i>
+                Severity Levels
+            </h3>
+        </div>
+        <div class="distribution-grid">
+            {% for severity_key, count in analytics.severity_distribution.items() %}
+            {% if count > 0 %}
+            <div class="distribution-item">
+                <div class="distribution-color" style="background: {{ severity_levels[severity_key].color }};"></div>
+                <div class="distribution-info">
+                    <div class="distribution-name">{{ severity_levels[severity_key].name }}</div>
+                    <div class="distribution-count">{{ count }} complaints</div>
+                </div>
+                <div class="distribution-percentage">
+                    {{ "%.1f"|format((count / analytics.total_complaints * 100) if analytics.total_complaints > 0 else 0) }}%
+                </div>
+            </div>
+            {% endif %}
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Regional Distribution -->
+    <div class="chart-card">
+        <div class="chart-header">
+            <h3 class="chart-title">
+                <i class="fas fa-map-marker-alt"></i>
+                Regional Distribution
+            </h3>
+        </div>
+        <div class="distribution-grid">
+            {% for state_key, count in analytics.state_distribution.items() %}
+            {% if count > 0 %}
+            <div class="distribution-item">
+                <div class="distribution-info">
+                    <div class="distribution-name">
+                        {% if state_key in states %}
+                        {{ states[state_key].name }}
+                        {% else %}
+                        {{ state_key|title }}
+                        {% endif %}
+                    </div>
+                    <div class="distribution-count">{{ count }} complaints</div>
+                </div>
+                <div class="chart-bar">
+                    <div class="chart-fill" style="
+                        width: {{ (count / analytics.total_complaints * 100) if analytics.total_complaints > 0 else 0 }}%;
+                        background: linear-gradient(135deg, #4D96FF, #9D4EDD);
+                    "></div>
+                </div>
+            </div>
+            {% endif %}
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<!-- Timeline Visualization -->
+<div class="chart-card">
+    <div class="chart-header">
+        <h3 class="chart-title">
+            <i class="fas fa-chart-line"></i>
+            Complaint Timeline & Trends
+        </h3>
+        <select class="map-filter-select" id="timelineFilter" style="width: auto;">
+            <option value="weekly">Weekly View</option>
+            <option value="monthly">Monthly View</option>
+            <option value="quarterly">Quarterly View</option>
+        </select>
+    </div>
+    <div class="timeline-container">
+        <canvas class="timeline-chart" id="timelineChart"></canvas>
+    </div>
+</div>
+
+<!-- AI Insights -->
+{% if analytics.ai_insights %}
+<div class="ai-insights">
+    <div class="chart-card">
+        <div class="chart-header">
+            <h3 class="chart-title">
+                <i class="fas fa-robot"></i>
+                AI-Powered Insights & Predictions
+            </h3>
+        </div>
+        
+        <div class="insights-grid">
+            {% for insight in analytics.ai_insights %}
+            <div class="insight-card">
+                <div class="insight-header">
+                    <div class="insight-icon" style="background: {% if insight.type == 'success' %}linear-gradient(135deg, #6BCF7F, #4D96FF){% elif insight.type == 'warning' %}linear-gradient(135deg, #FFA500, #FF6B6B){% else %}linear-gradient(135deg, #4D96FF, #9D4EDD){% endif %};">
+                        {{ insight.icon }}
+                    </div>
+                    <div class="insight-title">{{ insight.title }}</div>
+                </div>
+                <div class="insight-message">{{ insight.message }}</div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Performance Score -->
+<div class="chart-card" style="margin-top: 2rem;">
+    <div class="chart-header">
+        <h3 class="chart-title">
+            <i class="fas fa-trophy"></i>
+            Community Performance Score
+        </h3>
+        <div class="performance-score" style="
+            background: linear-gradient(135deg, #4D96FF, #9D4EDD);
+            color: white;
+            padding: 0.5rem 1.5rem;
+            border-radius: 20px;
+            font-weight: 700;
+            font-size: 1.2rem;
+        ">
+            {{ analytics.performance_score }}/100
+        </div>
+    </div>
+    <div class="chart-container">
+        <div style="text-align: center; width: 100%;">
+            <div style="
+                width: 200px;
+                height: 200px;
+                border-radius: 50%;
+                background: conic-gradient(
+                    #6BCF7F 0% {{ analytics.performance_score * 3.6 }}deg,
+                    rgba(255, 255, 255, 0.2) {{ analytics.performance_score * 3.6 }}deg 360deg
+                );
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                margin: 0 auto;
+                position: relative;
+            ">
+                <div style="
+                    width: 160px;
+                    height: 160px;
+                    background: rgba(255, 255, 255, 0.15);
+                    border-radius: 50%;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-size: 2.5rem;
+                    font-weight: 800;
+                    color: white;
+                ">
+                    {{ analytics.performance_score }}
+                </div>
+            </div>
+            <div style="margin-top: 1rem; color: rgba(255, 255, 255, 0.8);">
+                Overall community management performance
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    // Sample complaint data - in real app, this would come from your backend
+    const sampleComplaints = [
+        {
+            id: 1,
+            title: "Pothole on Main Street",
+            description: "Large pothole causing traffic issues",
+            category: "infrastructure",
+            status: "pending",
+            severity: "high",
+            latitude: 28.6139,
+            longitude: 77.2090,
+            created_at: "2024-01-15",
+            user: "John Doe",
+            address: "Connaught Place, New Delhi"
+        },
+        {
+            id: 2,
+            title: "Garbage Accumulation",
+            description: "Garbage not collected for 3 days",
+            category: "sanitation",
+            status: "in_progress",
+            severity: "medium",
+            latitude: 28.7041,
+            longitude: 77.1025,
+            created_at: "2024-01-14",
+            user: "Jane Smith",
+            address: "North Delhi"
+        },
+        {
+            id: 3,
+            title: "Street Light Not Working",
+            description: "Light pole broken for 2 weeks",
+            category: "infrastructure",
+            status: "resolved",
+            severity: "medium",
+            latitude: 28.5355,
+            longitude: 77.3910,
+            created_at: "2024-01-10",
+            user: "Bob Wilson",
+            address: "South Delhi"
+        },
+        {
+            id: 4,
+            title: "Water Logging",
+            description: "Severe water logging after rain",
+            category: "infrastructure",
+            status: "pending",
+            severity: "critical",
+            latitude: 28.4595,
+            longitude: 77.0266,
+            created_at: "2024-01-16",
+            user: "Alice Brown",
+            address: "Gurugram"
+        },
+        {
+            id: 5,
+            title: "Noise Pollution",
+            description: "Construction noise after permitted hours",
+            category: "noise",
+            status: "pending",
+            severity: "low",
+            latitude: 28.4089,
+            longitude: 77.3178,
+            created_at: "2024-01-13",
+            user: "Charlie Davis",
+            address: "Faridabad"
+        }
+    ];
+
+    // Initialize the map
+    let map;
+    let markers = [];
+    let heatmapLayer = null;
+
+    function initMap() {
+        // Center on India
+        map = L.map('complaintsMap').setView([20.5937, 78.9629], 5);
+
+        // Add tile layer (using a dark theme)
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+            subdomains: 'abcd',
+            maxZoom: 20
+        }).addTo(map);
+
+        // Add complaint markers
+        addComplaintMarkers(sampleComplaints);
+
+        // Initialize heatmap
+        initHeatmap(sampleComplaints);
+
+        // Update map statistics
+        updateMapStats(sampleComplaints);
+    }
+
+    function addComplaintMarkers(complaints) {
+        // Clear existing markers
+        markers.forEach(marker => map.removeLayer(marker));
+        markers = [];
+
+        complaints.forEach(complaint => {
+            const markerColor = getColorBySeverity(complaint.severity);
+            
+            const marker = L.circleMarker([complaint.latitude, complaint.longitude], {
+                color: markerColor,
+                fillColor: markerColor,
+                fillOpacity: 0.7,
+                radius: 8,
+                weight: 2
+            }).addTo(map);
+
+            // Add popup
+            marker.bindPopup(createPopupContent(complaint));
+
+            markers.push(marker);
+        });
+    }
+
+    function initHeatmap(complaints) {
+        if (heatmapLayer) {
+            map.removeLayer(heatmapLayer);
+        }
+
+        const heatmapData = complaints.map(complaint => [
+            complaint.latitude,
+            complaint.longitude,
+            getHeatIntensity(complaint.severity)
+        ]);
+
+        heatmapLayer = L.heatLayer(heatmapData, {
+            radius: 25,
+            blur: 15,
+            maxZoom: 17,
+            gradient: {
+                0.2: '#FF6B6B',
+                0.4: '#FFA500',
+                0.6: '#FFD93D',
+                0.8: '#6BCF7F',
+                1.0: '#4D96FF'
+            }
+        }).addTo(map);
+    }
+
+    function getColorBySeverity(severity) {
+        const colors = {
+            'low': '#6BCF7F',
+            'medium': '#FFD93D',
+            'high': '#FFA500',
+            'critical': '#FF6B6B'
+        };
+        return colors[severity] || '#4D96FF';
+    }
+
+    function getHeatIntensity(severity) {
+        const intensities = {
+            'low': 0.3,
+            'medium': 0.5,
+            'high': 0.7,
+            'critical': 1.0
+        };
+        return intensities[severity] || 0.5;
+    }
+
+    function createPopupContent(complaint) {
+        const statusColors = {
+            'pending': '#FFA500',
+            'in_progress': '#4D96FF',
+            'resolved': '#6BCF7F',
+            'closed': '#9D4EDD'
+        };
+
+        return `
+            <div class="complaint-popup">
+                <div class="popup-header">
+                    <div class="popup-status" style="background: ${statusColors[complaint.status] || '#666'}">
+                        ${complaint.status.replace('_', ' ').toUpperCase()}
+                    </div>
+                    <div style="font-weight: 600; color: #333;">${complaint.severity.toUpperCase()}</div>
+                </div>
+                <div class="popup-title">${complaint.title}</div>
+                <div class="popup-details">${complaint.description}</div>
+                <div class="popup-meta">
+                    <span>${complaint.category}</span>
+                    <span>${complaint.created_at}</span>
+                </div>
+            </div>
+        `;
+    }
+
+    function updateMapStats(complaints) {
+        document.getElementById('mapTotalComplaints').textContent = complaints.length;
+        
+        // Calculate clusters (simple grouping by proximity)
+        const clusters = groupComplaintsByProximity(complaints);
+        document.getElementById('mapClusters').textContent = clusters.length;
+        
+        // Calculate hotspots (areas with high complaint density)
+        const hotspots = clusters.filter(cluster => cluster.complaints.length >= 2);
+        document.getElementById('mapHotspots').textContent = hotspots.length;
+        
+        // Calculate average response time (mock data)
+        const avgResponse = calculateAverageResponseTime(complaints);
+        document.getElementById('mapAvgResponse').textContent = avgResponse;
+    }
+
+    function groupComplaintsByProximity(complaints, threshold = 0.1) {
+        const groups = [];
+        const used = new Set();
+
+        complaints.forEach((complaint, index) => {
+            if (used.has(index)) return;
+
+            const group = [complaint];
+            used.add(index);
+
+            complaints.forEach((other, otherIndex) => {
+                if (used.has(otherIndex)) return;
+
+                const distance = calculateDistance(
+                    complaint.latitude, complaint.longitude,
+                    other.latitude, other.longitude
+                );
+
+                if (distance < threshold) {
+                    group.push(other);
+                    used.add(otherIndex);
+                }
+            });
+
+            groups.push({
+                center: calculateCenter(group),
+                complaints: group
+            });
+        });
+
+        return groups;
+    }
+
+    function calculateDistance(lat1, lon1, lat2, lon2) {
+        const R = 6371; // Earth's radius in km
+        const dLat = (lat2 - lat1) * Math.PI / 180;
+        const dLon = (lon2 - lon1) * Math.PI / 180;
+        const a = 
+            Math.sin(dLat/2) * Math.sin(dLat/2) +
+            Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+            Math.sin(dLon/2) * Math.sin(dLon/2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        return R * c;
+    }
+
+    function calculateCenter(complaints) {
+        const sum = complaints.reduce((acc, complaint) => {
+            acc.lat += complaint.latitude;
+            acc.lon += complaint.longitude;
+            return acc;
+        }, { lat: 0, lon: 0 });
+
+        return {
+            lat: sum.lat / complaints.length,
+            lon: sum.lon / complaints.length
+        };
+    }
+
+    function calculateAverageResponseTime(complaints) {
+        // Mock calculation - in real app, this would use actual resolution times
+        const resolved = complaints.filter(c => c.status === 'resolved');
+        if (resolved.length === 0) return 'N/A';
+        
+        const avgHours = Math.floor(resolved.length * 24 / complaints.length);
+        return avgHours < 24 ? `${avgHours}h` : `${Math.floor(avgHours / 24)}d`;
+    }
+
+    // Filter functionality
+    function applyFilters() {
+        const categoryFilter = document.getElementById('categoryFilter').value;
+        const statusFilter = document.getElementById('statusFilter').value;
+        const timeFilter = document.getElementById('timeFilter').value;
+        const showHeatmap = document.getElementById('heatmapToggle').checked;
+
+        let filteredComplaints = sampleComplaints.filter(complaint => {
+            const categoryMatch = categoryFilter === 'all' || complaint.category === categoryFilter;
+            const statusMatch = statusFilter === 'all' || complaint.status === statusFilter;
+            const timeMatch = filterByTime(complaint, timeFilter);
+            
+            return categoryMatch && statusMatch && timeMatch;
+        });
+
+        // Update markers
+        addComplaintMarkers(filteredComplaints);
+
+        // Update heatmap
+        if (showHeatmap) {
+            initHeatmap(filteredComplaints);
+        } else if (heatmapLayer) {
+            map.removeLayer(heatmapLayer);
+            heatmapLayer = null;
+        }
+
+        // Update statistics
+        updateMapStats(filteredComplaints);
+    }
+
+    function filterByTime(complaint, timeFilter) {
+        if (timeFilter === 'all') return true;
+        
+        const complaintDate = new Date(complaint.created_at);
+        const now = new Date();
+        
+        switch (timeFilter) {
+            case 'today':
+                return complaintDate.toDateString() === now.toDateString();
+            case 'week':
+                const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+                return complaintDate >= weekAgo;
+            case 'month':
+                const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+                return complaintDate >= monthAgo;
+            default:
+                return true;
+        }
+    }
+
+    // Initialize timeline chart
+    function initTimelineChart() {
+        const ctx = document.getElementById('timelineChart').getContext('2d');
+        
+        // Sample timeline data
+        const timelineData = {
+            labels: ['Jan 1', 'Jan 8', 'Jan 15', 'Jan 22', 'Jan 29'],
+            datasets: [
+                {
+                    label: 'New Complaints',
+                    data: [12, 19, 8, 15, 22],
+                    borderColor: '#FF6B6B',
+                    backgroundColor: 'rgba(255, 107, 107, 0.1)',
+                    tension: 0.4,
+                    fill: true
+                },
+                {
+                    label: 'Resolved',
+                    data: [8, 12, 6, 14, 18],
+                    borderColor: '#6BCF7F',
+                    backgroundColor: 'rgba(107, 207, 127, 0.1)',
+                    tension: 0.4,
+                    fill: true
+                }
+            ]
+        };
+
+        new Chart(ctx, {
+            type: 'line',
+            data: timelineData,
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        labels: {
+                            color: 'white'
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: {
+                            color: 'rgba(255, 255, 255, 0.1)'
+                        },
+                        ticks: {
+                            color: 'white'
+                        }
+                    },
+                    y: {
+                        grid: {
+                            color: 'rgba(255, 255, 255, 0.1)'
+                        },
+                        ticks: {
+                            color: 'white'
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    // Event listeners
+    document.addEventListener('DOMContentLoaded', function() {
+        initMap();
+        initTimelineChart();
+
+        // Add event listeners for filters
+        document.getElementById('categoryFilter').addEventListener('change', applyFilters);
+        document.getElementById('statusFilter').addEventListener('change', applyFilters);
+        document.getElementById('timeFilter').addEventListener('change', applyFilters);
+        document.getElementById('heatmapToggle').addEventListener('change', applyFilters);
+        document.getElementById('timelineFilter').addEventListener('change', function() {
+            // In real app, this would update the timeline chart
+            console.log('Timeline filter changed to:', this.value);
+        });
+
+        // Animate chart bars on page load
+        const chartFills = document.querySelectorAll('.chart-fill');
+        chartFills.forEach(fill => {
+            const originalWidth = fill.style.width;
+            fill.style.width = '0%';
+            setTimeout(() => {
+                fill.style.width = originalWidth;
+            }, 500);
+        });
+
+        // Add counting animation to stats
+        const statNumbers = document.querySelectorAll('.stat-number');
+        statNumbers.forEach(stat => {
+            const originalText = stat.textContent;
+            const value = parseInt(originalText.replace(',', '').replace('+', ''));
+            
+            if (!isNaN(value)) {
+                let start = 0;
+                const duration = 2000;
+                const increment = value / (duration / 16);
+                
+                const timer = setInterval(() => {
+                    start += increment;
+                    if (start >= value) {
+                        stat.textContent = originalText;
+                        clearInterval(timer);
+                    } else {
+                        stat.textContent = Math.floor(start);
+                    }
+                }, 16);
+            }
+        });
+
+        // Simulate real-time updates
+        setInterval(() => {
+            // In real app, this would fetch new data from the server
+            updateLiveIndicators();
+        }, 30000);
+    });
+
+    function updateLiveIndicators() {
+        // Simulate live data updates
+        const liveUpdate = document.querySelector('.hotspot-pulse');
+        if (liveUpdate) {
+            liveUpdate.style.animation = 'none';
+            setTimeout(() => {
+                liveUpdate.style.animation = 'pulse 2s infinite';
+            }, 10);
+        }
+    }
+
+    // WebSocket for real-time updates (commented out for demo)
+    /*
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = `${protocol}//${window.location.host}/ws/{{ user.username }}`;
+    const socket = new WebSocket(wsUrl);
+
+    socket.onmessage = function(event) {
+        const data = JSON.parse(event.data);
+        
+        if (data.type === 'new_complaint') {
+            showNotification(`🆕 New complaint: ${data.complaint.title}`, 'info');
+            // Add new complaint to map and update statistics
+        } else if (data.type === 'status_update') {
+            showNotification(`🔄 Complaint status updated: ${data.new_status}`, 'info');
+        }
+    };
+    */
+
+    function showNotification(message, type = 'info') {
+        // Remove existing notifications
+        const existingNotifications = document.querySelectorAll('.notification');
+        existingNotifications.forEach(notification => notification.remove());
+
+        const notification = document.createElement('div');
+        notification.className = `notification notification-${type}`;
+        notification.style.cssText = `
+            position: fixed;
+            top: 100px;
+            right: 20px;
+            padding: 1.5rem 2rem;
+            border-radius: 15px;
+            background: ${type === 'success' ? 'linear-gradient(135deg, #6BCF7F, #4D96FF)' : 
+                          type === 'error' ? 'linear-gradient(135deg, #FF6B6B, #FFA500)' : 
+                          'linear-gradient(135deg, #4D96FF, #9D4EDD)'};
+            color: white;
+            font-weight: 600;
+            z-index: 10000;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            animation: slideIn 0.5s ease;
+        `;
+        
+        notification.textContent = message;
+        document.body.appendChild(notification);
+        
+        setTimeout(() => {
+            if (notification.parentElement) {
+                notification.style.animation = 'slideOut 0.5s ease forwards';
+                setTimeout(() => notification.remove(), 500);
+            }
+        }, 4000);
+    }
+
+    // Add CSS for animations
+    const styles = document.createElement('style');
+    styles.textContent = `
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+        
+        @keyframes slideOut {
+            from {
+                transform: translateX(0);
+                opacity: 1;
+            }
+            to {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+        }
+    `;
+    document.head.appendChild(styles);
+</script>
+{% endblock %}
